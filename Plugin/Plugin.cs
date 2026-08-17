@@ -10,6 +10,7 @@ using SPT.Reflection.Patching;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using MoreBotsAPI.Interop;
@@ -39,9 +40,7 @@ namespace MoreBotsAPI
             // save the Logger to variable so we can use it elsewhere in the project
             LogSource = Logger;
 
-            FieldInfo excludedDifficultiesField = typeof(LocalBotSettingsProviderClass).GetField("Dictionary_1", BindingFlags.Static | BindingFlags.Public) ?? throw new InvalidOperationException("ExcludedDifficulties field not found.");
-            var excludedDifficulties = (Dictionary<WildSpawnType, List<BotDifficulty>>)excludedDifficultiesField.GetValue(null);
-
+            var eftAsm = typeof(BotOwner).Assembly;
             var defaultExcludedDifficulties = new List<BotDifficulty>
             {
                 BotDifficulty.easy,
@@ -49,24 +48,77 @@ namespace MoreBotsAPI
                 BotDifficulty.impossible
             };
 
-            foreach (var botType in CustomWildSpawnTypeManager.GetCustomWildSpawnTypes())
+            // Find LocalBotSettingsProviderClass equivalent via reflection
+            try
             {
-                if (!excludedDifficulties.ContainsKey((WildSpawnType)botType.WildSpawnTypeValue))
+                var providerType = eftAsm.GetTypes().FirstOrDefault(t =>
+                    t.IsAbstract && t.IsSealed &&
+                    t.GetField("Dictionary_1", BindingFlags.Static | BindingFlags.Public) != null);
+                var excludedField = providerType?.GetField("Dictionary_1", BindingFlags.Static | BindingFlags.Public);
+                var excludedDifficulties = excludedField?.GetValue(null) as Dictionary<WildSpawnType, List<BotDifficulty>>;
+                if (excludedDifficulties != null)
                 {
-                    if (botType.ExcludedDifficulties != null)
-                        excludedDifficulties.Add((WildSpawnType)botType.WildSpawnTypeValue, botType.ExcludedDifficulties.ConvertAll(difficultyInt => (BotDifficulty)difficultyInt));
-                    else
-                        excludedDifficulties.Add((WildSpawnType)botType.WildSpawnTypeValue, defaultExcludedDifficulties);
-
-                    Logger.LogInfo($"Successfully added {botType.WildSpawnTypeName} : {botType.WildSpawnTypeValue} to the excluded difficulties list");
+                    foreach (var botType in CustomWildSpawnTypeManager.GetCustomWildSpawnTypes())
+                    {
+                        var spawnType = (WildSpawnType)botType.WildSpawnTypeValue;
+                        if (!excludedDifficulties.ContainsKey(spawnType))
+                        {
+                            var difficulties = botType.ExcludedDifficulties != null
+                                ? botType.ExcludedDifficulties.ConvertAll(d => (BotDifficulty)d)
+                                : defaultExcludedDifficulties;
+                            excludedDifficulties.Add(spawnType, difficulties);
+                            Logger.LogInfo($"Added {botType.WildSpawnTypeName} : {botType.WildSpawnTypeValue} to excluded difficulties");
+                        }
+                    }
                 }
-                Traverse.Create(typeof(BotSettingsRepoClass)).Field<Dictionary<WildSpawnType, GClass790>>("Dictionary_0").Value.Add((WildSpawnType)botType.WildSpawnTypeValue, new GClass790(botType.IsBoss, botType.IsFollower, botType.IsHostileToEverybody, $"ScavRole/{botType.ScavRole}", (ETagStatus)0));
-
-                if (botType.CountAsBossForStatistics.HasValue)
+                else
                 {
-                    BotSettingsRepoClass.Dictionary_0[(WildSpawnType)botType.WildSpawnTypeValue].CountAsBossForStatistics = botType.CountAsBossForStatistics.Value;
+                    Logger.LogWarning("Could not find excluded difficulties dictionary — bot spawn types may not load at all difficulties.");
                 }
             }
+            catch (Exception e) { Logger.LogWarning($"Excluded difficulties registration failed: {e.Message}"); }
+
+            // Find BotSettingsRepoClass equivalent via reflection
+            try
+            {
+                var repoType = eftAsm.GetTypes().FirstOrDefault(t =>
+                    t.IsAbstract && t.IsSealed &&
+                    t.GetField("Dictionary_0", BindingFlags.Static | BindingFlags.Public) != null);
+                var repoField = repoType?.GetField("Dictionary_0", BindingFlags.Static | BindingFlags.Public);
+                var repoDict = repoField?.GetValue(null) as System.Collections.IDictionary;
+                if (repoDict != null)
+                {
+                    // Find GClass790 equivalent - constructor(bool, bool, bool, string, ETagStatus)
+                    var settingsType = eftAsm.GetTypes().FirstOrDefault(t =>
+                        !t.IsAbstract && t.GetConstructors().Any(c =>
+                        {
+                            var p = c.GetParameters();
+                            return p.Length >= 4 && p[0].ParameterType == typeof(bool) && p[1].ParameterType == typeof(bool) && p[3].ParameterType == typeof(string);
+                        }));
+                    if (settingsType != null)
+                    {
+                        foreach (var botType in CustomWildSpawnTypeManager.GetCustomWildSpawnTypes())
+                        {
+                            var spawnType = (WildSpawnType)botType.WildSpawnTypeValue;
+                            if (!repoDict.Contains(spawnType))
+                            {
+                                var entry = Activator.CreateInstance(settingsType, botType.IsBoss, botType.IsFollower, botType.IsHostileToEverybody, $"ScavRole/{botType.ScavRole}", (ETagStatus)0);
+                                repoDict.Add(spawnType, entry);
+                                if (botType.CountAsBossForStatistics.HasValue)
+                                {
+                                    var prop = settingsType.GetProperty("CountAsBossForStatistics");
+                                    prop?.SetValue(entry, botType.CountAsBossForStatistics.Value);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Logger.LogWarning("Could not find BotSettingsRepo dictionary — custom bots may not have proper settings.");
+                }
+            }
+            catch (Exception e) { Logger.LogWarning($"BotSettingsRepo registration failed: {e.Message}"); }
 
             new TarkovInitPatch().Enable(); //For Sain stuff
             new FixRaidEndSpawnTypePatch().Enable();
@@ -85,9 +137,29 @@ namespace MoreBotsAPI
 
             InitConfig();
 
-            int oldWildSpawnTypeConverter = Array.FindIndex<JsonConverter>(JsonSerializerSettingsClass.Converters, c => c.GetType() == typeof(GClass1866<WildSpawnType>));
-            LogSource.LogInfo($"Old WildSpawnTypeFromInt converter index: {oldWildSpawnTypeConverter} {JsonSerializerSettingsClass.Converters[oldWildSpawnTypeConverter]}");
-            JsonSerializerSettingsClass.Converters[oldWildSpawnTypeConverter] = new WildSpawnTypeFromIntConverter<WildSpawnType>(true);
+            // Replace WildSpawnType JSON converter — find JsonSerializerSettingsClass by reflection
+            try
+            {
+                var settingsClassType = eftAsm.GetTypes().FirstOrDefault(t =>
+                    t.IsAbstract && t.IsSealed &&
+                    t.GetProperty("Converters", BindingFlags.Static | BindingFlags.Public) != null);
+                var convertersProp = settingsClassType?.GetProperty("Converters", BindingFlags.Static | BindingFlags.Public);
+                var converters = convertersProp?.GetValue(null) as JsonConverter[];
+                if (converters != null)
+                {
+                    int idx = Array.FindIndex(converters, c => c.CanConvert(typeof(WildSpawnType)) && c.GetType().IsGenericType);
+                    if (idx >= 0)
+                    {
+                        LogSource.LogInfo($"Replacing WildSpawnType converter at index {idx}: {converters[idx].GetType().Name}");
+                        converters[idx] = new WildSpawnTypeFromIntConverter<WildSpawnType>(true);
+                    }
+                    else
+                    {
+                        LogSource.LogWarning("Could not find WildSpawnType converter to replace.");
+                    }
+                }
+            }
+            catch (Exception e) { LogSource.LogWarning($"JSON converter replacement failed: {e.Message}"); }
         }
 
         public void CheckPlugins()

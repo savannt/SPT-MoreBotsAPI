@@ -1,4 +1,6 @@
-﻿using EFT;
+using EFT;
+using EFT.Ballistics;
+using HarmonyLib;
 using SPT.Reflection.Patching;
 using System.Reflection;
 
@@ -8,15 +10,16 @@ namespace MoreBotsAPI.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(LocationStatisticsCollectorAbstractClass).GetMethod(nameof(LocationStatisticsCollectorAbstractClass.OnDeath), BindingFlags.Public | BindingFlags.Instance);
+            return AccessTools.Method(typeof(EFT.BaseStatisticsManager), nameof(EFT.BaseStatisticsManager.OnDeath));
         }
 
         [PatchPostfix]
-        protected static void PatchPostfix(LocationStatisticsCollectorAbstractClass __instance)
+        protected static void PatchPostfix(EFT.BaseStatisticsManager __instance, Player player, IPlayer killer, DamageInfo damageInfo, EBodyPart bodyPart)
         {
-            var role = __instance.Profile_0.EftStats.DeathCause.Role;
+            if (player?.Profile?.EftStats?.DeathCause == null) return;
+            var role = player.Profile.EftStats.DeathCause.Role;
             if (CustomWildSpawnTypeManager.IsCustomWildSpawnType((int)role))
-                __instance.Profile_0.EftStats.DeathCause.Role = WildSpawnType.assault;
+                player.Profile.EftStats.DeathCause.Role = WildSpawnType.assault;
         }
     }
 }

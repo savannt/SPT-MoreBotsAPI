@@ -105,13 +105,15 @@ namespace MoreBotsAPI.Components
 
             if (!botOwner.Boss.IamBoss) return followerManagers;
 
-            if (botOwner.BotsGroup.MembersCount > followerManagers.Count)
+            var group = botOwner.BotsGroup;
+            if (group.MembersCount > followerManagers.Count)
             {
                 followerManagers.Clear();
 
-                foreach (var follower in botOwner.BotsGroup.Members)
+                for (int i = 0; i < group.MembersCount; i++)
                 {
-                    if (follower.TryGetComponent<BotHuntManager>(out var manager))
+                    var follower = group.Member(i);
+                    if (follower != null && follower.TryGetComponent<BotHuntManager>(out var manager))
                     {
                         followerManagers.Add(manager);
                     }

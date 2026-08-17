@@ -1,32 +1,29 @@
 using MoreBotsServer.Services;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Spt.Config;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Servers;
-using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Utils;
 using System.Reflection;
 using MoreBotsServer.Models;
 
 namespace MoreBotsServer;
 
-public record ModMetadata : AbstractModMetadata
+public record ModMetadata : IModMetadata
 {
-    public override string ModGuid { get; init; } = "com.morebotsapi.tacticaltoaster";
-    public override string Name { get; init; } = "MoreBotsAPI";
-    public override string Author { get; init; } = "TacticalToaster";
-    public override List<string>? Contributors { get; init; } = new() { };
-    public override SemanticVersioning.Version Version { get; init; } = new(2, 0, 1);
-    public override SemanticVersioning.Range SptVersion { get; init; } = new("~4.0.0");
-    public override List<string>? Incompatibilities { get; init; }
-    public override Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
-    public override string? Url { get; init; }
-    public override bool? IsBundleMod { get; init; }
-    public override string License { get; init; } = "MIT";
+    public string ModGuid { get; init; } = "com.morebotsapi.tacticaltoaster";
+    public string Name { get; init; } = "MoreBotsAPI";
+    public string Author { get; init; } = "TacticalToaster";
+    public List<string>? Contributors { get; init; } = new() { };
+    public SemanticVersioning.Version Version { get; init; } = new(2, 0, 1);
+    public SemanticVersioning.Range SptVersion { get; init; } = new("~4.1.0");
+    public bool HasPrepatcher { get; init; } = false;
+    public List<string>? Incompatibilities { get; init; }
+    public Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
+    public string? Url { get; init; }
+    public string License { get; init; } = "MIT";
 }
 
 [Injectable(InjectionType.Singleton)]
@@ -62,19 +59,19 @@ public class MoreBotsLogger
     }
 }
 
-[Injectable(InjectionType = InjectionType.Singleton, TypePriority = OnLoadOrder.PostDBModLoader + 5)]
+[Injectable(InjectionType = InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 5)]
 public class MoreBotsAPI(
     MoreBotsCustomBotTypeService customBotTypeService,
     MoreBotsCustomBotConfigService customBotConfigService,
     ConfigService configService,
-    ConfigServer configServer
+    BotConfig botConfig
 ) : IOnLoad
 {
-    public Task OnLoad()
+    public Task OnLoadAsync(CancellationToken cancellationToken = default)
     {
         if (configService.ModConfig.increaseBotCapAmount > 0)
         {
-            var botCaps = configServer.GetConfig<BotConfig>().MaxBotCap;
+            var botCaps = botConfig.MaxBotCap;
 
             foreach (var map in botCaps.Keys)
             {
@@ -101,8 +98,8 @@ public class MoreBotsAPI(
 [Injectable]
 public class MoreBotsSettingsRouter : DynamicRouter
 {
-    private static HttpResponseUtil _httpResponseUtil;
-    private static MoreBotsCustomBotTypeService _customBotTypeService;
+    private static HttpResponseUtil _httpResponseUtil = null!;
+    private static MoreBotsCustomBotTypeService _customBotTypeService = null!;
 
     public MoreBotsSettingsRouter(
         JsonUtil jsonUtil,
@@ -118,14 +115,10 @@ public class MoreBotsSettingsRouter : DynamicRouter
         return [
             new RouteAction(
                 "/singleplayer/settings/bot/difficulties",
-                async (
-                    url,
-                    info,
-                    sessionID,
-                    output
-                ) => {
-                    var result = _customBotTypeService.GetBotDifficulties(url, (EmptyRequestData)info, sessionID, output);
-                    return await new ValueTask<string>(_httpResponseUtil.NoBody(result));
+                async (url, info, sessionID, output, cancellationToken) =>
+                {
+                    var result = _customBotTypeService.GetBotDifficulties(url, (EmptyRequestData)info, sessionID.ToString(), output ?? string.Empty);
+                    return (object)_httpResponseUtil.NoBody(result);
                 }
             )
         ];
@@ -135,8 +128,8 @@ public class MoreBotsSettingsRouter : DynamicRouter
 [Injectable]
 public class MoreBotsGetFactionsRouter : StaticRouter
 {
-    private static HttpResponseUtil _httpResponseUtil;
-    private static FactionService _factionService;
+    private static HttpResponseUtil _httpResponseUtil = null!;
+    private static FactionService _factionService = null!;
 
     public MoreBotsGetFactionsRouter(
         FactionService factionService,
@@ -153,13 +146,9 @@ public class MoreBotsGetFactionsRouter : StaticRouter
         [
             new RouteAction(
                 "/morebotsapi/getfactions",
-                async (
-                    url,
-                    info,
-                    sessionID,
-                    output
-                ) => {
-                    return await new ValueTask<string>(_httpResponseUtil.NoBody(_factionService.GetAllFactions()));
+                async (url, info, sessionID, output, cancellationToken) =>
+                {
+                    return (object)_httpResponseUtil.NoBody(_factionService.GetAllFactions());
                 }
             )
         ];
@@ -169,8 +158,8 @@ public class MoreBotsGetFactionsRouter : StaticRouter
 [Injectable]
 public class MoreBotsFactionUpdateRevengeRouter : StaticRouter
 {
-    private static HttpResponseUtil _httpResponseUtil;
-    private static FactionService _factionService;
+    private static HttpResponseUtil _httpResponseUtil = null!;
+    private static FactionService _factionService = null!;
 
     public MoreBotsFactionUpdateRevengeRouter(
         FactionService factionService,
@@ -187,14 +176,10 @@ public class MoreBotsFactionUpdateRevengeRouter : StaticRouter
         [
             new RouteAction<UpdateRevengeRequest>(
                 "/morebotsapi/updaterevenge",
-                async (
-                    url,
-                    info,
-                    sessionID,
-                    output
-                ) => {
-                    _factionService.AdjustFactionRevenge(info);
-                    return await new ValueTask<string>(string.Empty);
+                async (url, info, sessionID, output, cancellationToken) =>
+                {
+                    await _factionService.AdjustFactionRevengeAsync(info, cancellationToken);
+                    return string.Empty;
                 }
             )
         ];
@@ -204,8 +189,8 @@ public class MoreBotsFactionUpdateRevengeRouter : StaticRouter
 [Injectable]
 public class MoreBotsFactionGetRevengesRouter : StaticRouter
 {
-    private static HttpResponseUtil _httpResponseUtil;
-    private static FactionService _factionService;
+    private static HttpResponseUtil _httpResponseUtil = null!;
+    private static FactionService _factionService = null!;
 
     public MoreBotsFactionGetRevengesRouter(
         FactionService factionService,
@@ -222,13 +207,9 @@ public class MoreBotsFactionGetRevengesRouter : StaticRouter
         [
             new RouteAction(
                 "/morebotsapi/getrevenges",
-                async (
-                    url,
-                    info,
-                    sessionID,
-                    output
-                ) => {
-                    return await new ValueTask<string>(_httpResponseUtil.NoBody(_factionService.GetFactionsRevenges()));
+                async (url, info, sessionID, output, cancellationToken) =>
+                {
+                    return (object)_httpResponseUtil.NoBody(await _factionService.GetFactionsRevengesAsync(cancellationToken));
                 }
             )
         ];

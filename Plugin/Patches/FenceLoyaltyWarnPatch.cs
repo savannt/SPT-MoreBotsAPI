@@ -9,7 +9,7 @@ namespace MoreBotsAPI.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(BotGroupWarnData), nameof(BotGroupWarnData.method_9));
+            return AccessTools.Method(typeof(BotGroupWarnData), nameof(BotGroupWarnData.ShallBossAttack));
         }
 
         [PatchPostfix]

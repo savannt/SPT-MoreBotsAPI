@@ -12,33 +12,33 @@
   
   <ItemGroup>
 		<Reference Include="Assembly-CSharp">
-		  <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\Assembly-CSharp.dll</HintPath>
+		  <HintPath>D:\SPT\EscapeFromTarkov_Data\Managed\Assembly-CSharp.dll</HintPath>
 		</Reference>
 		<Reference Include="spt-common">
-		  <HintPath>..\..\..\BepInEx\plugins\spt\spt-common.dll</HintPath>
+		  <HintPath>D:\SPT\BepInEx\plugins\spt\spt-common.dll</HintPath>
 		</Reference>
     <Reference Include="0Harmony">
-      <HintPath>..\..\..\BepInEx\core\0Harmony.dll</HintPath>
+      <HintPath>D:\SPT\BepInEx\core\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="BepInEx">
-      <HintPath>..\..\..\BepInEx\core\BepInEx.dll</HintPath>
+      <HintPath>D:\SPT\BepInEx\core\BepInEx.dll</HintPath>
     </Reference>
     <Reference Include="Mono.Cecil">
-      <HintPath>..\..\..\BepInEx\core\Mono.Cecil.dll</HintPath>
+      <HintPath>D:\SPT\BepInEx\core\Mono.Cecil.dll</HintPath>
     </Reference>
 		<Reference Include="Newtonsoft.Json">
-		  <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\Newtonsoft.Json.dll</HintPath>
+		  <HintPath>D:\SPT\EscapeFromTarkov_Data\Managed\Newtonsoft.Json.dll</HintPath>
 		</Reference>
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>D:\SPT\EscapeFromTarkov_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\..\..\EscapeFromTarkov_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>D:\SPT\EscapeFromTarkov_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(ProjectDir)\..\..\..\BepInEx\patchers\$(TargetFileName)&quot;" />
+    <Exec Command="if not exist &quot;D:\SPT\BepInEx\patchers&quot; mkdir &quot;D:\SPT\BepInEx\patchers&quot;&#xA;copy /Y &quot;$(TargetPath)&quot; &quot;D:\SPT\BepInEx\patchers\$(TargetFileName)&quot;" />
   </Target>
 
 </Project>

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Reflection;
 using EFT;
 using HarmonyLib;
@@ -11,14 +10,12 @@ public class FactionRaidEndPatch : ModulePatch
 {
     protected override MethodBase GetTargetMethod()
     {
-        return AccessTools.Method(typeof(Class308), nameof(Class308.LocalRaidEnded));
+        return AccessTools.Method(typeof(EFT.EftClientBackendSession), nameof(EFT.EftClientBackendSession.LocalRaidEnded));
     }
 
     [PatchPostfix]
-    public static void PatchPostfix(LocalRaidSettings settings, RaidEndDescriptorClass results, FlatItemsDataClass[] lostInsuredItems, Dictionary<string, FlatItemsDataClass[]> transferItems)
+    public static void PatchPostfix()
     {
-        var factionManager = MonoBehaviourSingleton<FactionManager>.Instance;
-        
-        factionManager.SendRevenges();
+        MonoBehaviourSingleton<FactionManager>.Instance?.SendRevenges();
     }
 }

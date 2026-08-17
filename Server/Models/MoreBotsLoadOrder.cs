@@ -4,7 +4,7 @@ namespace MoreBotsServer;
 
 public static class MoreBotsLoadOrder
 {
-    public const int LoadFactions = OnLoadOrder.PostDBModLoader + 80080;
+    public const int LoadFactions = OnLoadOrder.PostLoad + 80080;
 
-    public const int LoadBots = OnLoadOrder.PostDBModLoader + 80085;
+    public const int LoadBots = OnLoadOrder.PostLoad + 80085;
 }

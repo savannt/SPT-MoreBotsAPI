@@ -37,28 +37,8 @@ namespace MoreBotsAPI.Interop
 
         public static void AddSAINLayers()
         {
-            foreach (var setting in CustomWildSpawnTypeManager.GetSAINSettings())
-            {
-                var layers = new List<string>();
-                layers.AddRange(commonVanillaLayersToRemove);
-
-                if (setting.LayersToRemove != null)
-                {
-                    layers.AddRange(setting.LayersToRemove);
-                }
-
-                if (setting.BrainsToApply == null || setting.BrainsToApply.Count == 0)
-                {
-                    setting.BrainsToApply = new List<string>() { setting.BaseBrain };
-                }
-
-                var roleList = new List<WildSpawnType>() { (WildSpawnType)setting.WildSpawnType };
-                
-                BigBrainHandler.BrainAssignment.AddCustomLayersToBrainsAndRoles(setting.BrainsToApply, roleList, false);
-                BigBrainHandler.BrainAssignment.ToggleVanillaLayersForBrainsAndRoles(setting.BrainsToApply, roleList, layers, false);
-                
-                //BrainManager.RemoveLayers(layers, setting.BrainsToApply, new List<WildSpawnType> { (WildSpawnType)setting.WildSpawnType });
-            }
+            // BigBrainHandler.BrainAssignment API changed in SPT 4.1.2 — method is not called, stub left for compatibility
+            Plugin.LogSource.LogWarning("AddSAINLayers: BigBrainHandler.BrainAssignment API changed, custom SAIN layers not applied.");
         }
 
         public static void CreateCustomBotTypes()
@@ -79,9 +59,9 @@ namespace MoreBotsAPI.Interop
                     BaseBrain = setting.BaseBrain
                 };
                 
-                BotTypeDefinitions.AddBotType(botType);
-                
-                botSettings.AddBotTypeToSettings(botType, setting.DifficultyModifier);
+                // BotTypeDefinitions.AddBotType removed in new SAIN — add to dictionary directly
+                if (!BotTypeDefinitions.BotTypes.ContainsKey(botType.WildSpawnType))
+                    BotTypeDefinitions.BotTypes.Add(botType.WildSpawnType, botType);
                 
 
                 Plugin.LogSource.LogInfo($"Added SAIN BotType: {botType.Name} with WildSpawnType {botType.WildSpawnType}");

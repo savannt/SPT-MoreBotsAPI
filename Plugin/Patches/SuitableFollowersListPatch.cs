@@ -1,6 +1,7 @@
-﻿using EFT;
+using EFT;
 using HarmonyLib;
 using SPT.Reflection.Patching;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace MoreBotsAPI.Patches
@@ -9,7 +10,7 @@ namespace MoreBotsAPI.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(BotSettingsRepoClass), nameof(BotSettingsRepoClass.Init));
+            return AccessTools.Method(typeof(WildSpawnTypeExtension), nameof(WildSpawnTypeExtension.Init));
         }
 
         static bool hasRun = false;
@@ -22,7 +23,7 @@ namespace MoreBotsAPI.Patches
 
             foreach (var suitableGroup in CustomWildSpawnTypeManager.GetSuitableGroupsList())
             {
-                BotSettingsRepoClass.smethod_0(suitableGroup.ConvertAll(type => (WildSpawnType)type));
+                WildSpawnTypeExtension.SubInitList(suitableGroup.ConvertAll(type => (WildSpawnType)type));
             }
 
             hasRun = true;

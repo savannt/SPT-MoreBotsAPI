@@ -23,13 +23,13 @@ namespace MoreBotsAPI.Components
 
         public void StartHunt(string huntEvent)
         {
-            Singleton<BotEventHandler>.Instance.AnyEvent(huntEvent);
+            Singleton<GlobalEventDispatcher>.Instance.AnyEvent(huntEvent);
             Plugin.LogSource.LogInfo($"[MoreBotsAPI] Starting hunt event {huntEvent}");
         }
 
         public void InitRaid()
         {
-            Singleton<BotEventHandler>.Instance.AnyEvent("hunt");
+            Singleton<GlobalEventDispatcher>.Instance.AnyEvent("hunt");
 
             Singleton<IBotGame>.Instance.BotsController.BotSpawner.OnBotCreated += OnBotCreated;
         }
@@ -146,9 +146,12 @@ namespace MoreBotsAPI.Components
                         huntGroups[hunter.botOwner.BotsGroup] = bot;
                     }
 
-                    foreach (var follower in hunter.botOwner.BotsGroup.Members)
+                    var botsGroup = hunter.botOwner.BotsGroup;
+                    for (int mi = 0; mi < botsGroup.MembersCount; mi++)
                     {
-                        follower.GetComponent<BotHuntManager>().huntTarget = huntGroups[hunter.botOwner.BotsGroup];
+                        var follower = botsGroup.Member(mi);
+                        if (follower != null)
+                            follower.GetComponent<BotHuntManager>().huntTarget = huntGroups[botsGroup];
                     }
 
                     

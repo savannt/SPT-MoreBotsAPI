@@ -55,7 +55,8 @@ public class FactionManager : MonoBehaviourSingleton<FactionManager>
 
         foreach (var revengeFaction in revengeFactions)
         {
-            if (IsRoleInFaction(botsGroup.InitialBot.Profile.Info.Settings.Role, revengeFaction)) return true;
+            var initialBot = botsGroup.Member(0);
+            if (initialBot != null && IsRoleInFaction(initialBot.Profile.Info.Settings.Role, revengeFaction)) return true;
         }
         return false;
     }
@@ -136,10 +137,10 @@ public class FactionManager : MonoBehaviourSingleton<FactionManager>
         LoadFactions();
         LoadRevenges();
         
-        if (!Singleton<BotEventHandler>.Instantiated) return;
+        if (!Singleton<GlobalEventDispatcher>.Instantiated) return;
         
-        Singleton<BotEventHandler>.Instance.OnKill -= OnKill;
-        Singleton<BotEventHandler>.Instance.OnKill += OnKill;
+        Singleton<GlobalEventDispatcher>.Instance.OnKill -= OnKill;
+        Singleton<GlobalEventDispatcher>.Instance.OnKill += OnKill;
     }
 
     public void OnKill(IPlayer killer, IPlayer victim)
@@ -153,8 +154,8 @@ public class FactionManager : MonoBehaviourSingleton<FactionManager>
 
     public override void OnDestroy()
     {
-        if (!Singleton<BotEventHandler>.Instantiated) return;
+        if (!Singleton<GlobalEventDispatcher>.Instantiated) return;
         
-        Singleton<BotEventHandler>.Instance.OnKill -= OnKill;
+        Singleton<GlobalEventDispatcher>.Instance.OnKill -= OnKill;
     }
 }
