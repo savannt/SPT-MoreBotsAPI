@@ -1,4 +1,26 @@
-# MoreBotsAPI for SPT 4.0.X
+# MoreBotsAPI for SPT 4.1.2
+
+---
+
+# 🟣 JOIN THE DISCORD — https://discord.gg/nxa3W7w4rJ
+
+### **https://discord.gg/nxa3W7w4rJ**
+
+**This is the single most important link in this README.** All updates, release
+announcements, bug fixes, early builds and support happen in the Discord **first**.
+If you run this mod, join it — it is the only place you will reliably hear about
+breaking changes and new versions.
+
+**What's coming next:** I am building a **post-1.0 patcher and backend, written
+from scratch and engineered to be very performant** — a proper foundation instead
+of the current patchwork. **All of these mods will shortly be merged into that new
+system.** If you want to follow that work, or use it when it lands, the Discord is
+where it will be announced.
+
+### 👉 **https://discord.gg/nxa3W7w4rJ** 👈
+
+---
+
 A client and server API that makes making custom bots a little less infuriating. Create a prepatch and server mod that implements this API and you'll have the basis for introducing new bosses, factions, and any other custom bot you can think of (maybe, this is still Tarkov).
 
 ### Table of Contents
@@ -31,9 +53,22 @@ SAIN compatability with a little setup
 **Custom behaviors**, use BigBrain if you intend on creating completely custom behavior not already found in base EFT bots.
 <a id="installation"></a>
 ## Installation
- 1. Download a release version from GitHub or SPT Forge.
- 2. Open the .7z file using 7-Zip
- 3. Drag the SPT and BepInEx folders into your main SPT directory, those folders alongside EscapeFromTarkov.exe should already exist.
+
+1. Download the latest release zip from GitHub.
+2. Extract it into your **SPT install root** — the folder containing `EscapeFromTarkov.exe` and `SPT_Runtime`.
+3. The zip is already laid out correctly and will place:
+
+```
+BepInEx/patchers/MoreBotsPrepatch.dll              <- client prepatcher
+BepInEx/plugins/MoreBotsAPI/MoreBotsPlugin.dll     <- client plugin
+SPT_Runtime/user/mods/MoreBotsServer/              <- server mod
+```
+
+> **Note:** the prepatcher **must** end up in `BepInEx/patchers/`, not `BepInEx/plugins/`, or it will never run.
+> Server mods live under `SPT_Runtime/user/mods/` — **not** `user/mods/` at the SPT root. A server mod folder
+> placed at the root is silently ignored.
+
+**Requires SPT 4.1.2.**
 <a id="using"></a>
 # Using the API as a modder
 To use the API, you'll need to make a client prepatcher and a server mod.
