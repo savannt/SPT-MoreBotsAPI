@@ -79,10 +79,12 @@ namespace MoreBotsAPI
 
             // Register custom types in WildSpawnTypeExtension._spawnTypeSettings
             // (SPT 4.1.2: replaces old BotSettingsRepoClass.Dictionary_0)
-            // _spawnTypeSettings is private; WildSpawnTypeSettings ctor: (bool isBoss, bool isFollower, bool isHostileToEverybody, string scavRoleKey, ETagStatus phraseTag)
+            // SPT's preloader patcher widens this field to PUBLIC, so a NonPublic-only lookup
+            // misses it entirely (that was the "found=False" warning). Ask for both.
+            // WildSpawnTypeSettings ctor: (bool isBoss, bool isFollower, bool isHostileToEverybody, string scavRoleKey, ETagStatus phraseTag)
             try
             {
-                var spawnTypeSettingsField = typeof(WildSpawnTypeExtension).GetField("_spawnTypeSettings", BindingFlags.Static | BindingFlags.NonPublic);
+                var spawnTypeSettingsField = typeof(WildSpawnTypeExtension).GetField("_spawnTypeSettings", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
                 var spawnTypeSettings = spawnTypeSettingsField?.GetValue(null) as System.Collections.IDictionary;
                 var settingsType = eftAsm.GetType("WildSpawnTypeSettings");
                 if (spawnTypeSettings != null && settingsType != null)

@@ -15,19 +15,24 @@ namespace MoreBotsAPI.Patches
 
         [PatchPostfix]
         [HarmonyPriority(Priority.First)] // Make sure this runs before BigBrain so we can override it
-        public static void PatchPrefix(StandartBotBrain __instance, BotOwner ___BotOwner_0)
+        public static void PatchPrefix(StandartBotBrain __instance)
         {
             try
             {
-                if (CustomWildSpawnTypeManager.IsCustomWildSpawnType((int)___BotOwner_0.Profile.Info.Settings.Role))
+                // 0.16.9.40743 has no StandartBotBrain.BotOwner_0 to inject; an unresolvable
+                // ___field parameter breaks the IL recompile for EVERY patch on this method.
+                var botOwner = __instance.BaseBrain?._owner;
+                if (botOwner == null) return;
+
+                if (CustomWildSpawnTypeManager.IsCustomWildSpawnType((int)botOwner.Profile.Info.Settings.Role))
                 {
                     __instance.BaseBrain?.Dispose();
                     __instance.Agent?.Dispose();
 
-                    var customType = ___BotOwner_0.Profile.Info.Settings.Role.GetCustomType();
-                    Logger.LogMessage($"Changing brain for custom bot {___BotOwner_0.Profile.Info.Settings.Role}.");
-                    __instance.BaseBrain = GetBaseBrain(___BotOwner_0, customType.BaseBrain);
-                    __instance.Agent = GetAgent(___BotOwner_0, __instance.BaseBrain, __instance);
+                    var customType = botOwner.Profile.Info.Settings.Role.GetCustomType();
+                    Logger.LogMessage($"Changing brain for custom bot {botOwner.Profile.Info.Settings.Role}.");
+                    __instance.BaseBrain = GetBaseBrain(botOwner, customType.BaseBrain);
+                    __instance.Agent = GetAgent(botOwner, __instance.BaseBrain, __instance);
 
                     var eventDelegate = (MulticastDelegate)
                         typeof(StandartBotBrain).GetField(nameof(StandartBotBrain.OnSetStrategy), BindingFlags.NonPublic | BindingFlags.Instance).GetValue(__instance);
