@@ -48,13 +48,12 @@ namespace MoreBotsAPI
                 BotDifficulty.impossible
             };
 
-            // Find LocalBotSettingsProviderClass equivalent via reflection
+            // Register custom types in BotInternalSettingsController.ExcludedDifficulties
+            // (SPT 4.1.2: replaces old LocalBotSettingsProviderClass.Dictionary_1)
             try
             {
-                var providerType = eftAsm.GetTypes().FirstOrDefault(t =>
-                    t.IsAbstract && t.IsSealed &&
-                    t.GetField("Dictionary_1", BindingFlags.Static | BindingFlags.Public) != null);
-                var excludedField = providerType?.GetField("Dictionary_1", BindingFlags.Static | BindingFlags.Public);
+                var bisc = eftAsm.GetType("BotInternalSettingsController");
+                var excludedField = bisc?.GetField("ExcludedDifficulties", BindingFlags.Static | BindingFlags.Public);
                 var excludedDifficulties = excludedField?.GetValue(null) as Dictionary<WildSpawnType, List<BotDifficulty>>;
                 if (excludedDifficulties != null)
                 {
@@ -67,58 +66,49 @@ namespace MoreBotsAPI
                                 ? botType.ExcludedDifficulties.ConvertAll(d => (BotDifficulty)d)
                                 : defaultExcludedDifficulties;
                             excludedDifficulties.Add(spawnType, difficulties);
-                            Logger.LogInfo($"Added {botType.WildSpawnTypeName} : {botType.WildSpawnTypeValue} to excluded difficulties");
+                            Logger.LogInfo($"Added {botType.WildSpawnTypeName} to ExcludedDifficulties");
                         }
                     }
                 }
                 else
                 {
-                    Logger.LogWarning("Could not find excluded difficulties dictionary — bot spawn types may not load at all difficulties.");
+                    Logger.LogWarning("Could not find BotInternalSettingsController.ExcludedDifficulties.");
                 }
             }
-            catch (Exception e) { Logger.LogWarning($"Excluded difficulties registration failed: {e.Message}"); }
+            catch (Exception e) { Logger.LogWarning($"ExcludedDifficulties registration failed: {e.Message}"); }
 
-            // Find BotSettingsRepoClass equivalent via reflection
+            // Register custom types in WildSpawnTypeExtension._spawnTypeSettings
+            // (SPT 4.1.2: replaces old BotSettingsRepoClass.Dictionary_0)
+            // _spawnTypeSettings is private; WildSpawnTypeSettings ctor: (bool isBoss, bool isFollower, bool isHostileToEverybody, string scavRoleKey, ETagStatus phraseTag)
             try
             {
-                var repoType = eftAsm.GetTypes().FirstOrDefault(t =>
-                    t.IsAbstract && t.IsSealed &&
-                    t.GetField("Dictionary_0", BindingFlags.Static | BindingFlags.Public) != null);
-                var repoField = repoType?.GetField("Dictionary_0", BindingFlags.Static | BindingFlags.Public);
-                var repoDict = repoField?.GetValue(null) as System.Collections.IDictionary;
-                if (repoDict != null)
+                var spawnTypeSettingsField = typeof(WildSpawnTypeExtension).GetField("_spawnTypeSettings", BindingFlags.Static | BindingFlags.NonPublic);
+                var spawnTypeSettings = spawnTypeSettingsField?.GetValue(null) as System.Collections.IDictionary;
+                var settingsType = eftAsm.GetType("WildSpawnTypeSettings");
+                if (spawnTypeSettings != null && settingsType != null)
                 {
-                    // Find GClass790 equivalent - constructor(bool, bool, bool, string, ETagStatus)
-                    var settingsType = eftAsm.GetTypes().FirstOrDefault(t =>
-                        !t.IsAbstract && t.GetConstructors().Any(c =>
-                        {
-                            var p = c.GetParameters();
-                            return p.Length >= 4 && p[0].ParameterType == typeof(bool) && p[1].ParameterType == typeof(bool) && p[3].ParameterType == typeof(string);
-                        }));
-                    if (settingsType != null)
+                    foreach (var botType in CustomWildSpawnTypeManager.GetCustomWildSpawnTypes())
                     {
-                        foreach (var botType in CustomWildSpawnTypeManager.GetCustomWildSpawnTypes())
+                        var spawnType = (WildSpawnType)botType.WildSpawnTypeValue;
+                        if (!spawnTypeSettings.Contains(spawnType))
                         {
-                            var spawnType = (WildSpawnType)botType.WildSpawnTypeValue;
-                            if (!repoDict.Contains(spawnType))
+                            var entry = Activator.CreateInstance(settingsType, botType.IsBoss, botType.IsFollower, botType.IsHostileToEverybody, $"ScavRole/{botType.ScavRole}", (ETagStatus)0);
+                            spawnTypeSettings.Add(spawnType, entry);
+                            if (botType.CountAsBossForStatistics.HasValue)
                             {
-                                var entry = Activator.CreateInstance(settingsType, botType.IsBoss, botType.IsFollower, botType.IsHostileToEverybody, $"ScavRole/{botType.ScavRole}", (ETagStatus)0);
-                                repoDict.Add(spawnType, entry);
-                                if (botType.CountAsBossForStatistics.HasValue)
-                                {
-                                    var prop = settingsType.GetProperty("CountAsBossForStatistics");
-                                    prop?.SetValue(entry, botType.CountAsBossForStatistics.Value);
-                                }
+                                var field = settingsType.GetField("CountAsBossForStatistics");
+                                field?.SetValue(entry, (bool?)botType.CountAsBossForStatistics.Value);
                             }
+                            Logger.LogInfo($"Registered WildSpawnTypeSettings for {botType.WildSpawnTypeName}");
                         }
                     }
                 }
                 else
                 {
-                    Logger.LogWarning("Could not find BotSettingsRepo dictionary — custom bots may not have proper settings.");
+                    Logger.LogWarning($"Could not find WildSpawnTypeExtension._spawnTypeSettings (found={spawnTypeSettings != null}) or WildSpawnTypeSettings type (found={settingsType != null}).");
                 }
             }
-            catch (Exception e) { Logger.LogWarning($"BotSettingsRepo registration failed: {e.Message}"); }
+            catch (Exception e) { Logger.LogWarning($"WildSpawnTypeSettings registration failed: {e.Message}"); }
 
             new TarkovInitPatch().Enable(); //For Sain stuff
             new FixRaidEndSpawnTypePatch().Enable();

@@ -14,7 +14,7 @@ namespace MoreBotsAPI.Patches
         }
 
         [PatchPostfix]
-        protected static void PatchPostfix(EFT.BaseStatisticsManager __instance, Player player, IPlayer killer, DamageInfo damageInfo, EBodyPart bodyPart)
+        protected static void PatchPostfix(Player player)
         {
             if (player?.Profile?.EftStats?.DeathCause == null) return;
             var role = player.Profile.EftStats.DeathCause.Role;
